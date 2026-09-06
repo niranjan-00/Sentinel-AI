@@ -1,12 +1,19 @@
-import type { NextConfig } from "next";
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+reactStrictMode: false,
 
-const nextConfig: NextConfig = {
-  output: "standalone",
-  /* config options here */
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-  reactStrictMode: false,
+typescript: {
+ignoreBuildErrors: true,
+},
+
+images: {
+remotePatterns: [
+{
+protocol: "https",
+hostname: "**",
+},
+],
+},
 };
 
-export default nextConfig;
+module.exports = nextConfig;
