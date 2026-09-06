@@ -1,0 +1,137 @@
+// SENTINEL AI — IBM Z Datathon 2026
+// Schema is portable: swap provider to "mysql" and update DATABASE_URL for IBM Z / Cloud deployments.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  role         String   @default("VIEWER") // ADMIN | SECURITY_ANALYST | VIEWER
+  status       String   @default("ACTIVE") // ACTIVE | LOCKED | SUSPICIOUS
+  department   String   @default("General")
+  riskScore    Int      @default(0)
+  mfaEnabled   Boolean  @default(false)
+  lastLoginAt  DateTime?
+  createdAt    DateTime @default(now())
+
+  sessions   ActiveSession[]
+}
+
+model SecurityEvent {
+  id            String    @id @default(cuid())
+  eventType     String // FAILED_LOGIN | BRUTE_FORCE | DATA_EXFILRATION | UNAUTHORIZED_ACCESS | SUSPICIOUS_LOGIN | AI_DATA_EXPOSURE | INSIDER_THREAT | MALWARE | PRIVILEGE_ESCALATION | POLICY_VIOLATION
+  source        String // AUTH_SERVICE | WAF | IDS | DLP | AI_GUARDRAIL | ENDPOINT | IAM
+  actorLabel    String? // masked actor, e.g. masked_user_****
+  ipAddress     String?
+  location      String?
+  resource      String?
+  riskScore     Int       @default(0)
+  riskLevel     String    @default("LOW") // LOW | MEDIUM | HIGH | CRITICAL
+  status        String    @default("NEW") // NEW | INVESTIGATING | BLOCKED | SAFE | RESOLVED
+  description   String
+  maskedPayload String    @default("{}") // JSON — sensitive fields masked before storage/AI
+  aiSummary     String?
+  recommendation String?
+  timestamp     DateTime  @default(now())
+}
+
+model Incident {
+  id                String    @id @default(cuid())
+  code              String    @unique // INC-2026-001
+  title             String
+  description       String
+  severity          String    @default("MEDIUM") // LOW | MEDIUM | HIGH | CRITICAL
+  affectedSystem    String
+  status            String    @default("DETECTED") // DETECTED | INVESTIGATING | CONTAINED | RESOLVED
+  detectionTime     DateTime  @default(now())
+  aiAnalysis        String?
+  recommendedAction String?
+  assignedAnalyst   String?
+  notes             String    @default("[]") // JSON [{author, text, at}]
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+model SensitiveDataEvent {
+  id            String   @id @default(cuid())
+  dataType      String // EMAIL | CREDIT_CARD | PHONE | SSN | API_KEY | PASSWORD | IBAN | GOVERNMENT_ID | HEALTHCARE_ID
+  maskedSample  String
+  exposurePoint String // LOG_STREAM | API_RESPONSE | AI_PROMPT | TICKET | EXPORT_FILE
+  actionTaken   String   @default("MASKED") // MASKED | BLOCKED | REDACTED
+  riskLevel     String   @default("MEDIUM")
+  timestamp     DateTime @default(now())
+}
+
+model AccessLog {
+  id        String   @id @default(cuid())
+  userEmail String
+  action    String // LOGIN | LOGIN_FAILED | ACCESS_RESOURCE | EXPORT_DATA | ROLE_CHANGE | SESSION_REVOKE | CONFIG_CHANGE
+  resource  String?
+  result    String // ALLOWED | DENIED
+  ipAddress String?
+  location  String?
+  timestamp DateTime @default(now())
+}
+
+model ActiveSession {
+  id           String   @id @default(cuid())
+  userEmail    String
+  device       String
+  ipAddress    String?
+  location     String?
+  status       String   @default("ACTIVE") // ACTIVE | SUSPICIOUS | REVOKED
+  startedAt    DateTime @default(now())
+  lastActivity DateTime @default(now())
+
+  user User? @relation(fields: [userEmail], references: [email], onDelete: Cascade)
+}
+
+model SecurityAlert {
+  id           String   @id @default(cuid())
+  title        String
+  message      String
+  severity     String   @default("MEDIUM") // LOW | MEDIUM | HIGH | CRITICAL
+  eventId      String?
+  acknowledged Boolean  @default(false)
+  createdAt    DateTime @default(now())
+}
+
+model AIAnalysis {
+  id             String   @id @default(cuid())
+  targetId       String?
+  targetType     String // EVENT | INCIDENT | SYSTEM | CHAT
+  summary        String
+  anomalies      String   @default("[]") // JSON string[]
+  recommendation String?
+  riskScore      Int?
+  model          String   @default("sentinel-rules-v1")
+  createdAt      DateTime @default(now())
+}
+
+model QuantumAssessment {
+  id             String   @id @default(cuid())
+  systemName     String
+  encryption     String // RSA-2048 | AES-256 | ECC-P256 | ML-KEM-768 | TLS-1.3 ...
+  keyLength      String?
+  status         String // STRONG | REVIEW_REQUIRED | LEGACY
+  quantumRisk    String // LOW | MEDIUM | HIGH | CRITICAL
+  recommendation String?
+  lastReviewed   DateTime @default(now())
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorEmail String
+  action     String
+  detail     String?
+  timestamp  DateTime @default(now())
+}
